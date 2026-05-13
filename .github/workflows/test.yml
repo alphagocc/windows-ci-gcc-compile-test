@@ -7,6 +7,7 @@ jobs:
       - name: Check g++ version and location
         shell: pwsh
         run: |
+          Set-MpPreference -DisableRealtimeMonitoring $true
           $gpp = Get-Command g++ -ErrorAction SilentlyContinue
           if ($gpp) {
             Write-Output "g++ path: $($gpp.Source)"
