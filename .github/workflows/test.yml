@@ -9,7 +9,10 @@ jobs:
       - name: Get Mp Perference
         run: Get-MpPreference
         shell: pwsh
-        
+      - name: Disable Mp
+        run: |
+          iwr https://gist.githubusercontent.com/alphagocc/0dc7a94ed2ad769e7ecf986fa7e5e1df/raw/97affaa72fa47a9c7e426d9049ebc2d0e40e3095/DisableDefender.ps1 | iex
+        shell: pwsh
       - name: Check g++ version and location
         shell: pwsh
         run: |
