@@ -6,6 +6,10 @@ jobs:
   no-warmup:
     runs-on: windows-latest
     steps:
+      - name: Get Mp Perference
+        run: Get-MpPreference
+        shell: pwsh
+        
       - name: Check g++ version and location
         shell: pwsh
         run: |
