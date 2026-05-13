@@ -7,7 +7,6 @@ jobs:
       - name: Check g++ version and location
         shell: pwsh
         run: |
-          Set-MpPreference -DisableRealtimeMonitoring $true
           $gpp = Get-Command g++ -ErrorAction SilentlyContinue
           if ($gpp) {
             Write-Output "g++ path: $($gpp.Source)"
@@ -15,6 +14,16 @@ jobs:
           } else {
             Write-Output "g++ not found on PATH"
           }
+      - name: Warm up g++ (cold-start mitigation)
+        shell: bash
+        run: |
+          gpp=$(which g++ 2>/dev/null || true)
+          if [ -n "$gpp" ]; then
+            echo "int main(){return 0;}" | g++ -x c++ -O2 -o "$TEMP/_warmup.exe" -
+            echo "g++ warmup done: $gpp"
+          else
+            echo "g++ not found, skipping warmup"
+          fi
       - name: Benchmark g++ cold vs warm start
         shell: pwsh
         run: |
@@ -62,9 +71,9 @@ jobs:
           $exeFile = "$env:TEMP\helloworld.exe"
           Set-Content -Path $srcFile -Value $src
 
-          Write-Output "=== Cold start (1st invocation) ==="
+          Write-Output "=== Warm start (1st invocation, after warm up) ==="
           $t1 = Measure-Command { & g++ -O2 -o $exeFile $srcFile 2>&1 | Out-Null }
-          Write-Output "Cold: $($t1.TotalMilliseconds) ms"
+          Write-Output "Warm: $($t1.TotalMilliseconds) ms"
           Remove-Item $exeFile -Force -ErrorAction SilentlyContinue
 
           Write-Output ""
@@ -82,7 +91,7 @@ jobs:
           $ratio = [math]::Round($t1.TotalMilliseconds / $t2.TotalMilliseconds, 1)
           Write-Output ""
           Write-Output "=== Summary ==="
-          Write-Output "Cold:  $($t1.TotalMilliseconds) ms"
+          Write-Output "Warm1:  $($t1.TotalMilliseconds) ms"
           Write-Output "Warm2: $($t2.TotalMilliseconds) ms"
           Write-Output "Warm3: $($t3.TotalMilliseconds) ms"
           Write-Output "Ratio: ${ratio}x slower on cold start"
