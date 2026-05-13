@@ -1,0 +1,83 @@
+name: g++ Cold vs Warm Start Benchmark
+on: push
+jobs:
+  benchmark:
+    runs-on: windows-latest
+    steps:
+      - name: Install MSVC compiler
+        uses: TheMrMilchmann/setup-msvc-dev@v4.0.0
+        with:
+          arch: x64
+      - name: Install Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          architecture: x64
+      - name: Check g++ version and location
+        shell: pwsh
+        run: |
+          $gpp = Get-Command g++ -ErrorAction SilentlyContinue
+          if ($gpp) {
+            Write-Output "g++ path: $($gpp.Source)"
+            & g++ --version
+          } else {
+            Write-Output "g++ not found on PATH"
+          }
+      - name: Benchmark g++ cold vs warm start
+        shell: pwsh
+        run: |
+          $src = 'int main(){return 0;}'
+          $srcFile = "$env:TEMP\bench.cpp"
+          $exeFile = "$env:TEMP\bench.exe"
+          Set-Content -Path $srcFile -Value $src
+
+          Write-Output "=== Cold start (1st invocation) ==="
+          $t1 = Measure-Command { & g++ -O2 -o $exeFile $srcFile 2>&1 | Out-Null }
+          Write-Output "Cold: $($t1.TotalMilliseconds) ms"
+          Remove-Item $exeFile -Force -ErrorAction SilentlyContinue
+
+          Write-Output ""
+          Write-Output "=== Warm start (2nd invocation) ==="
+          $t2 = Measure-Command { & g++ -O2 -o $exeFile $srcFile 2>&1 | Out-Null }
+          Write-Output "Warm: $($t2.TotalMilliseconds) ms"
+          Remove-Item $exeFile -Force -ErrorAction SilentlyContinue
+
+          Write-Output ""
+          Write-Output "=== Warm start (3rd invocation) ==="
+          $t3 = Measure-Command { & g++ -O2 -o $exeFile $srcFile 2>&1 | Out-Null }
+          Write-Output "Warm: $($t3.TotalMilliseconds) ms"
+          Remove-Item $exeFile -Force -ErrorAction SilentlyContinue
+
+          $ratio = [math]::Round($t1.TotalMilliseconds / $t2.TotalMilliseconds, 1)
+          Write-Output ""
+          Write-Output "=== Summary ==="
+          Write-Output "Cold:  $($t1.TotalMilliseconds) ms"
+          Write-Output "Warm2: $($t2.TotalMilliseconds) ms"
+          Write-Output "Warm3: $($t3.TotalMilliseconds) ms"
+          Write-Output "Ratio: ${ratio}x slower on cold start"
+
+      - name: Benchmark cl.exe cold vs warm start
+        shell: pwsh
+        run: |
+          $src = 'int main(){return 0;}'
+          $srcFile = "$env:TEMP\bench_cl.cpp"
+          $exeFile = "$env:TEMP\bench_cl.exe"
+          Set-Content -Path $srcFile -Value $src
+
+          Write-Output "=== Cold start (1st invocation) ==="
+          $t1 = Measure-Command { & cl.exe /O2 /Fe:$exeFile $srcFile 2>&1 | Out-Null }
+          Write-Output "Cold: $($t1.TotalMilliseconds) ms"
+          Remove-Item $exeFile -Force -ErrorAction SilentlyContinue
+
+          Write-Output ""
+          Write-Output "=== Warm start (2nd invocation) ==="
+          $t2 = Measure-Command { & cl.exe /O2 /Fe:$exeFile $srcFile 2>&1 | Out-Null }
+          Write-Output "Warm: $($t2.TotalMilliseconds) ms"
+          Remove-Item $exeFile -Force -ErrorAction SilentlyContinue
+
+          $ratio = [math]::Round($t1.TotalMilliseconds / $t2.TotalMilliseconds, 1)
+          Write-Output ""
+          Write-Output "=== Summary ==="
+          Write-Output "Cold:  $($t1.TotalMilliseconds) ms"
+          Write-Output "Warm:  $($t2.TotalMilliseconds) ms"
+          Write-Output "Ratio: ${ratio}x slower on cold start"
