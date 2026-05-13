@@ -4,7 +4,7 @@ on:
   workflow_dispatch: 
 jobs:
   no-warmup:
-    runs-on: windows-2022
+    runs-on: windows-2025-vs2026
     steps:
       - name: Check g++ version and location
         shell: pwsh
@@ -89,7 +89,7 @@ jobs:
           Write-Output "Ratio: ${ratio}x slower on cold start"
 
   with-warmup-trivial:
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     steps:
       - name: Warm up g++ (trivial program)
         shell: bash
@@ -160,7 +160,7 @@ jobs:
           Write-Output "2nd:                 $($t2.TotalMilliseconds) ms"
 
   with-warmup-matching:
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     steps:
       - name: Warm up g++ (matching headers)
         shell: bash
