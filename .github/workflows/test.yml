@@ -4,7 +4,7 @@ on:
   workflow_dispatch: 
 jobs:
   no-warmup:
-    runs-on: windows-2025-vs2026
+    runs-on: windows-2022
     steps:
       - name: Check g++ version and location
         shell: pwsh
