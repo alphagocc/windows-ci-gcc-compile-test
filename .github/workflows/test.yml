@@ -1,5 +1,7 @@
 name: g++ Cold vs Warm Start Benchmark
-on: push
+on:
+  push:
+  workflow_dispatch: 
 jobs:
   no-warmup:
     runs-on: windows-latest
@@ -62,19 +64,19 @@ jobs:
           Set-Content -Path $srcFile -Value $src
 
           Write-Output "=== Cold start (1st invocation) ==="
-          $t1 = Measure-Command { & g++ -O2 -o $exeFile $srcFile 2>&1 | Out-Null }
+          $t1 = Measure-Command { & g++ -O2 -o $exeFile $srcFile -v }
           Write-Output "Cold: $($t1.TotalMilliseconds) ms"
           Remove-Item $exeFile -Force -ErrorAction SilentlyContinue
 
           Write-Output ""
           Write-Output "=== Warm start (2nd invocation) ==="
-          $t2 = Measure-Command { & g++ -O2 -o $exeFile $srcFile 2>&1 | Out-Null }
+          $t2 = Measure-Command { & g++ -O2 -o $exeFile $srcFile -v }
           Write-Output "Warm: $($t2.TotalMilliseconds) ms"
           Remove-Item $exeFile -Force -ErrorAction SilentlyContinue
 
           Write-Output ""
           Write-Output "=== Warm start (3rd invocation) ==="
-          $t3 = Measure-Command { & g++ -O2 -o $exeFile $srcFile 2>&1 | Out-Null }
+          $t3 = Measure-Command { & g++ -O2 -o $exeFile $srcFile -v }
           Write-Output "Warm: $($t3.TotalMilliseconds) ms"
           Remove-Item $exeFile -Force -ErrorAction SilentlyContinue
 
