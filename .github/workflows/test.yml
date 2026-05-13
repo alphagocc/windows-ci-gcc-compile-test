@@ -1,7 +1,7 @@
 name: g++ Cold vs Warm Start Benchmark
 on: push
 jobs:
-  benchmark:
+  no-warmup:
     runs-on: windows-latest
     steps:
       - name: Check g++ version and location
@@ -86,25 +86,15 @@ jobs:
           Write-Output "Warm3: $($t3.TotalMilliseconds) ms"
           Write-Output "Ratio: ${ratio}x slower on cold start"
 
-  benchmark-with-warmup:
+  with-warmup-trivial:
     runs-on: windows-latest
     steps:
-      - name: Check g++ version and location
-        shell: pwsh
-        run: |
-          $gpp = Get-Command g++ -ErrorAction SilentlyContinue
-          if ($gpp) {
-            Write-Output "g++ path: $($gpp.Source)"
-            & g++ --version
-          } else {
-            Write-Output "g++ not found on PATH"
-          }
-      - name: Warm up g++
+      - name: Warm up g++ (trivial program)
         shell: bash
         run: |
           echo "int main(){return 0;}" | g++ -x c++ -O2 -o "$TEMP/_warmup.exe" -
-          echo "g++ warmup done"
-      - name: Benchmark after warmup
+          echo "trivial warmup done"
+      - name: Benchmark after trivial warmup
         shell: pwsh
         run: |
           $src = @'
@@ -151,9 +141,9 @@ jobs:
           $exeFile = "$env:TEMP\helloworld.exe"
           Set-Content -Path $srcFile -Value $src
 
-          Write-Output "=== After warmup (1st invocation) ==="
+          Write-Output "=== After trivial warmup (1st) ==="
           $t1 = Measure-Command { & g++ -O2 -o $exeFile $srcFile 2>&1 | Out-Null }
-          Write-Output "After warmup: $($t1.TotalMilliseconds) ms"
+          Write-Output "After trivial warmup: $($t1.TotalMilliseconds) ms"
           Remove-Item $exeFile -Force -ErrorAction SilentlyContinue
 
           Write-Output ""
@@ -163,13 +153,82 @@ jobs:
           Remove-Item $exeFile -Force -ErrorAction SilentlyContinue
 
           Write-Output ""
-          Write-Output "=== 3rd invocation ==="
-          $t3 = Measure-Command { & g++ -O2 -o $exeFile $srcFile 2>&1 | Out-Null }
-          Write-Output "3rd: $($t3.TotalMilliseconds) ms"
+          Write-Output "=== Summary ==="
+          Write-Output "After trivial warmup: $($t1.TotalMilliseconds) ms"
+          Write-Output "2nd:                 $($t2.TotalMilliseconds) ms"
+
+  with-warmup-matching:
+    runs-on: windows-latest
+    steps:
+      - name: Warm up g++ (matching headers)
+        shell: bash
+        run: |
+          cat <<'WARMUP' | g++ -x c++ -O2 -o "$TEMP/_warmup.exe" -
+          #include <cstring>
+          #include <iostream>
+          #include <vector>
+          int main() { std::vector<int> v; std::cout << v.size(); return 0; }
+          WARMUP
+          echo "matching warmup done"
+      - name: Benchmark after matching warmup
+        shell: pwsh
+        run: |
+          $src = @'
+          #include <cstring>
+          #include <iostream>
+          #include <vector>
+
+          using namespace std;
+
+          int f(int n) {
+          	vector<int> a(1);
+          	for (int i = 0; i < n; i++) {
+          		a[i] = 100;
+          	}
+          }
+          int *p;
+          int main() {
+          	int s;
+          	cin >> s;
+          	switch (s) {
+          		case 1:
+          			cout << "AC" << endl;
+          			break;
+          		case 2:
+          			cout << "WA" << endl;
+          			break;
+          		case 3:
+          			for (int i = 0; i < 200; i++)
+          				p = new int[1 << 24], memset(p, 0x3f, sizeof(int) * (1 << 24));
+          			break;
+          		case 4:
+          			while (1)
+          				;
+          			break;
+          		case 5:
+          			f(100);
+          			break;
+          		default:
+          			break;
+          	}
+          }
+          '@
+          $srcFile = "$env:TEMP\helloworld.cpp"
+          $exeFile = "$env:TEMP\helloworld.exe"
+          Set-Content -Path $srcFile -Value $src
+
+          Write-Output "=== After matching warmup (1st) ==="
+          $t1 = Measure-Command { & g++ -O2 -o $exeFile $srcFile 2>&1 | Out-Null }
+          Write-Output "After matching warmup: $($t1.TotalMilliseconds) ms"
+          Remove-Item $exeFile -Force -ErrorAction SilentlyContinue
+
+          Write-Output ""
+          Write-Output "=== 2nd invocation ==="
+          $t2 = Measure-Command { & g++ -O2 -o $exeFile $srcFile 2>&1 | Out-Null }
+          Write-Output "2nd: $($t2.TotalMilliseconds) ms"
           Remove-Item $exeFile -Force -ErrorAction SilentlyContinue
 
           Write-Output ""
           Write-Output "=== Summary ==="
-          Write-Output "After warmup: $($t1.TotalMilliseconds) ms"
-          Write-Output "2nd:          $($t2.TotalMilliseconds) ms"
-          Write-Output "3rd:          $($t3.TotalMilliseconds) ms"
+          Write-Output "After matching warmup: $($t1.TotalMilliseconds) ms"
+          Write-Output "2nd:                  $($t2.TotalMilliseconds) ms"
